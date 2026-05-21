@@ -789,6 +789,10 @@ table {
   min-width: 760px;
 }
 
+.mobile-blocker {
+  display: none;
+}
+
 th,
 td {
   padding: 10px 12px;
@@ -829,6 +833,37 @@ th {
 }
 
 @media (max-width: 900px) {
+  body[data-mode="readonly"] main {
+    min-height: calc(100vh - 114px);
+    display: grid;
+    place-items: center;
+  }
+
+  body[data-mode="readonly"] #analysis-view {
+    display: none;
+  }
+
+  body[data-mode="readonly"] .mobile-blocker {
+    display: grid;
+    gap: 10px;
+    max-width: 460px;
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    text-align: center;
+  }
+
+  body[data-mode="readonly"] .mobile-blocker h2 {
+    margin: 0;
+  }
+
+  body[data-mode="readonly"] .mobile-blocker p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
   .app-header,
   .panel-title {
     align-items: flex-start;
