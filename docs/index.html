@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lura Death Review</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-mode="readonly">
+    <header class="app-header">
+      <div class="brand-block">
+        <img src="https://assets.rpglogs.com/img/warcraft/bosses/3183-icon.jpg" alt="Midnight Falls" class="boss-icon" />
+        <div>
+          <p class="eyebrow">Best in slot</p>
+          <h1>Lura Death Review</h1>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="analysis-view" class="view">
+        <section class="analysis-controls sticky-filter global-filter">
+          <label>
+            Report
+            <select id="report-select"></select>
+          </label>
+          <div class="metric-strip">
+            <span class="inline-metric"><strong id="stat-pulls">0</strong> Pulls</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title trend-title">
+            <h2 id="selected-spell-chart-title">Heaven's Glaives Trend</h2>
+            <div class="chart-controls">
+              <label class="inline-select-label" aria-label="Player">
+                <select id="player-select"></select>
+              </label>
+            </div>
+            <div class="metric-strip chart-metric">
+              <span class="inline-metric"><strong id="stat-selected-rate">0 Pulls</strong></span>
+            </div>
+          </div>
+          <canvas id="player-spell-chart" height="300"></canvas>
+          <div id="glaives-damage-total" class="chart-total">Total Heaven's Glaives Damage: 0</div>
+        </section>
+
+        <section class="phase-grid">
+          <div class="panel compact-chart-panel">
+            <div class="panel-title">
+              <h2>Phase Trend</h2>
+            </div>
+            <canvas id="phase-chart" height="260"></canvas>
+          </div>
+
+          <div class="panel phase-delta-panel">
+            <div class="panel-title">
+              <h2>Report Phase Shift</h2>
+            </div>
+            <div id="report-phase-delta" class="phase-delta-list"></div>
+          </div>
+        </section>
+
+        <section class="analysis-controls sticky-filter wipe-filter">
+          <label>
+            Phase
+            <select id="wipe-phase-filter"></select>
+          </label>
+          <label>
+            Reason
+            <select id="wipe-reason-filter"></select>
+          </label>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title wipe-title">
+            <h2>Wipe Reasons</h2>
+          </div>
+          <div id="wipe-reason-insights" class="reason-summary"></div>
+          <div id="wipe-player-breakdown" class="reason-summary player-breakdown"></div>
+          <div id="wipe-reasons-list" class="wipe-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

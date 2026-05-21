@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lura Death Review</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-block">
+        <img src="https://assets.rpglogs.com/img/warcraft/bosses/3183-icon.jpg" alt="Midnight Falls" class="boss-icon" />
+        <div>
+          <p class="eyebrow">Best in slot</p>
+          <h1>Lura Death Review</h1>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <nav class="view-nav" aria-label="View">
+        <button class="nav-button active" type="button" data-view-target="analysis-view">Analysis</button>
+        <button class="nav-button secondary" type="button" data-view-target="import-view">Import</button>
+      </nav>
+
+      <div id="import-view" class="view" hidden>
+        <section class="import-section">
+          <div class="import-copy">
+            <h2>Import</h2>
+            <p>
+              Open the WarcraftLogs Deaths tab for a pull, e.g.
+              <code>?fight=10&type=deaths</code>, run the console script, then paste the JSON here.
+            </p>
+          </div>
+          <label>
+            Report name
+            <input id="report-name" type="text" placeholder="e.g. Raid night May 18" />
+          </label>
+          <label>
+            Interrupt order
+            <textarea id="interrupt-order" class="compact-input" spellcheck="false">Eliixdk -> Rootmuncher -> Rakkshasza -> Patchmyprey
+Azocariv -> Mamaessen -> Esmaiel -> Olanwizard
+Nóvamh -> Uwumiao -> Lözon -> Flappywappy</textarea>
+          </label>
+          <div class="import-actions">
+            <button id="copy-extractor" type="button">Copy pull script</button>
+            <button id="copy-all-extractor" type="button">Copy all wipes script</button>
+            <button id="copy-pages-data" type="button" class="secondary">Copy Pages data</button>
+            <button id="clear-data" type="button" class="secondary">Clear data</button>
+          </div>
+          <textarea id="import-json" spellcheck="false" placeholder="Paste JSON from the browser console here..."></textarea>
+          <div class="import-actions">
+            <button id="import-data" type="button">Import</button>
+            <span id="import-status" role="status"></span>
+          </div>
+        </section>
+      </div>
+
+      <div id="analysis-view" class="view">
+        <section class="analysis-controls sticky-filter global-filter">
+          <label>
+            Report
+            <select id="report-select"></select>
+          </label>
+          <div class="metric-strip">
+            <span class="inline-metric"><strong id="stat-pulls">0</strong> Pulls</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title trend-title">
+            <h2 id="selected-spell-chart-title">Heaven's Glaives Trend</h2>
+            <div class="chart-controls">
+              <label class="inline-select-label" aria-label="Player">
+                <select id="player-select"></select>
+              </label>
+            </div>
+            <div class="metric-strip chart-metric">
+              <span class="inline-metric"><strong id="stat-selected-rate">0 Pulls</strong></span>
+            </div>
+          </div>
+          <canvas id="player-spell-chart" height="300"></canvas>
+          <div id="glaives-damage-total" class="chart-total">Total Heaven's Glaives Damage: 0</div>
+        </section>
+
+        <section class="phase-grid">
+          <div class="panel compact-chart-panel">
+            <div class="panel-title">
+              <h2>Phase Trend</h2>
+            </div>
+            <canvas id="phase-chart" height="260"></canvas>
+          </div>
+
+          <div class="panel phase-delta-panel">
+            <div class="panel-title">
+              <h2>Report Phase Shift</h2>
+            </div>
+            <div id="report-phase-delta" class="phase-delta-list"></div>
+          </div>
+        </section>
+
+        <section class="analysis-controls sticky-filter wipe-filter">
+          <label>
+            Phase
+            <select id="wipe-phase-filter"></select>
+          </label>
+          <label>
+            Reason
+            <select id="wipe-reason-filter"></select>
+          </label>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title wipe-title">
+            <h2>Wipe Reasons</h2>
+          </div>
+          <div id="wipe-reason-insights" class="reason-summary"></div>
+          <div id="wipe-player-breakdown" class="reason-summary player-breakdown"></div>
+          <div id="wipe-reasons-list" class="wipe-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <template id="extractor-script-template">
+(function () {
+  const parseNumber = (value) => {
+    const cleaned = String(value || "").replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".");
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : null;
+  };
+
+  const parseTime = (value) => {
+    const text = String(value || "").trim();
+    const match = text.match(/(\d+):(\d+)/);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  };
+
+  const spellIdFromHref = (href) => {
+    const match = String(href || "").match(/spell=(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const url = new URL(window.location.href);
+  const reportCode = (url.pathname.match(/\/reports\/([^/]+)/) || [])[1] || "";
+  const fightId = Number(url.searchParams.get("fight")) || null;
+  const table = document.querySelector("table[id^='deaths-table'], table.deaths-table");
+  const nodeFightId = (node) => {
+    const href = node?.getAttribute?.("href") || node?.closest?.("a[href*='fight=']")?.getAttribute("href") || "";
+    try {
+      return Number(new URL(href, window.location.href).searchParams.get("fight")) || null;
+    } catch {
+      return null;
+    }
+  };
+  const fightCandidates = [...new Set([
+    ...document.querySelectorAll(".fight, .wipe, a[href*='fight=']"),
+    ...[...document.querySelectorAll(".fight-phase")].map((node) => node.closest(".fight, .wipe, a[href*='fight=']") || node.parentElement)
+  ].filter(Boolean))].filter((node) => node.querySelector && node.querySelector(".fight-phase"));
+  const fightNode =
+    fightCandidates.find((node) => nodeFightId(node) === fightId) ||
+    fightCandidates.find((node) => node.classList.contains("selected") || node.classList.contains("active")) ||
+    fightCandidates[0] ||
+    document.querySelector(".fight-phase")?.parentElement;
+
+  const fightMeta = fightNode
+    ? {
+        label: (fightNode.childNodes[0]?.textContent || "").trim(),
+        durationText: fightNode.querySelector(".fight-duration")?.textContent.replace(/[()]/g, "").trim() || "",
+        percentText: fightNode.querySelector(".fight-percent")?.textContent.replace("-", "").trim() || "",
+        phase: fightNode.querySelector(".fight-phase")?.textContent.trim() || "",
+        clockTime: fightNode.querySelector(".fight-time")?.textContent.trim() || ""
+      }
+    : {};
+
+  if (!table) {
+    throw new Error("No WarcraftLogs deaths table found. Open the Deaths tab for the desired pull.");
+  }
+
+  const rows = [...table.querySelectorAll("tbody tr")];
+  const deaths = rows.map((row, index) => {
+    const cells = [...row.children];
+    const nameCell = cells[1];
+    const killingCell = cells[2];
+    const lastHitsCell = cells[4];
+    const nameSpan = nameCell && nameCell.querySelector(".main-table-link");
+    const icon = nameCell && nameCell.querySelector("img[class*='actor-sprite-']");
+    const classSpec = icon ? (icon.className.match(/actor-sprite-([^\s]+)/) || [])[1] : "";
+    const killingSpellLink = killingCell && killingCell.querySelector("a[href*='spell=']");
+    const killingSpellSpan = killingCell && killingCell.querySelector("span[class^='school-']");
+    const lastHits = lastHitsCell
+      ? [...lastHitsCell.querySelectorAll("span[class^='school-']")].map((span) => {
+          const wrapper = span.closest("span[style]");
+          const link = wrapper ? wrapper.querySelector("a[href*='spell=']") : null;
+          const countMatch = span.textContent.match(/\(x\s*(\d+)\)/);
+          return {
+            spellId: spellIdFromHref(link && link.href),
+            spellName: span.childNodes[0] ? span.childNodes[0].textContent.trim() : span.textContent.trim(),
+            count: countMatch ? Number(countMatch[1]) : 1
+          };
+        })
+      : [];
+
+    return {
+      row: index + 1,
+      timeText: cells[0] ? cells[0].textContent.trim() : "",
+      time: parseTime(cells[0] && cells[0].textContent),
+      player: nameSpan ? nameSpan.textContent.trim() : "",
+      classSpec,
+      killingBlow: {
+        spellId: spellIdFromHref(killingSpellLink && killingSpellLink.href),
+        spellName: killingSpellSpan ? killingSpellSpan.childNodes[0].textContent.trim() : (killingCell ? killingCell.textContent.trim() : "")
+      },
+      over: cells[3] ? cells[3].textContent.trim() : "",
+      lastHits,
+      damageTaken: parseNumber(cells[5] && cells[5].textContent),
+      healingReceived: parseNumber(cells[6] && cells[6].textContent)
+    };
+  });
+
+  const payload = {
+    source: "warcraftlogs-deaths-table",
+    extractedAt: new Date().toISOString(),
+    pageUrl: window.location.href,
+    reportCode,
+    fightId,
+    pullLabel: fightMeta.label || (fightId ? `Fight ${fightId}` : ""),
+    fightMeta,
+    deaths
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const copyJson = window.copy
+    ? Promise.resolve(window.copy(json))
+    : navigator.clipboard
+      ? navigator.clipboard.writeText(json)
+      : Promise.reject(new Error("Clipboard is not available"));
+
+  copyJson.then(
+    () => console.log("Lura Death Review JSON was copied to the clipboard:", payload),
+    () => console.log("Copying was blocked. Copy this JSON manually:", json)
+  );
+})();
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
